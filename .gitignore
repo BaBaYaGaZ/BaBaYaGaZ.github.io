@@ -1,0 +1,13 @@
+# dependencies
+node_modules/
+
+# hexo generated
+public/
+db.json
+
+# logs
+*.log
+
+# system
+.DS_Store
+Thumbs.db
