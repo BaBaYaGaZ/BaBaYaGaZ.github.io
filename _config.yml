@@ -9,7 +9,7 @@ description: ''
 keywords:
 author: BaBaYaGaZ
 language: zh-CN
-timezone: Asia/Chengdu
+timezone: Asia/Shanghai
 
 # URL
 ## Set your site url here. For example, if you use GitHub Page, set url as 'https://username.github.io/project'
@@ -104,7 +104,4 @@ theme: landscape
 deploy:
   type: ''
 
-menu:
-  首页: /
-  关于: /about/
 
