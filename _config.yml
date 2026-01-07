@@ -3,17 +3,17 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: Hexo
-subtitle: ''
+title: BaBaYaGaZ 的博客
+subtitle: 记录学习与成长
 description: ''
 keywords:
-author: John Doe
-language: en
-timezone: ''
+author: BaBaYaGaZ
+language: zh-CN
+timezone: Asia/Chengdu
 
 # URL
 ## Set your site url here. For example, if you use GitHub Page, set url as 'https://username.github.io/project'
-url: https://BaBaYaGaZ.github.io
+url: https://babayagaz.github.io
 root: /
 permalink: :year/:month/:day/:title/
 permalink_defaults:
