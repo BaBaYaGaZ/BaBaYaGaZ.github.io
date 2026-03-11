@@ -18,13 +18,13 @@ b = 10;       // 改b就是改a，现在a也是10
 - `b` 是 `a` 的别名，对 `b` 的操作会直接作用于 `a`（引用不占用额外内存，编译器直接操作所引用的对象）。
 - 一旦引用被初始化为一个对象，就不能被指向到另一个对象。
 - 引用必须在创建时被初始化，不能为 `null`。
-- 引用必须绑定**变量**，不能是临时值。
+- 引用必须绑定**变量**，**不能是临时值**。
 
 ```
 int& r = 10; // 是非法的！
 ```
 
-- 不支持多级间接访问（不能有引用的引用）。
+- 不支持多级间接访问（**不能有引用的引用**）。
 
 可以创建数组的引用，例如：`int (&ref)[10] = arr;`
 
@@ -59,7 +59,7 @@ a = 20;
 b 会变吗？不会！b的值仍然是10
 ```
 
-**指向常量的指针**：指针指向的区域值不能改变，可以改变指针的指向
+**指向常量的指针**：指针指向的区域值**不能通过指针改变**，可以改变指针的指向
 
 ```
 int a = 10;
@@ -117,7 +117,7 @@ print(name);
 
 ```
 void print(string& s)
-print("hello"); // 会报错，s不能绑定临时对象
+print("hello"); // 会报错，引用s不能绑定临时对象
 ```
 
 若用值传递
@@ -1191,6 +1191,481 @@ int main() {
 # 第四大单元：类的补充
 
 ### 1. `const` 成员函数
+
+声明： `int getAge() const;`
+
+```
+class Student {
+public:
+    int age;
+
+    void print() const { // 成员函数
+        cout << age << endl;
+    }
+};
+```
+
+成员函数：这个成员函数**不会修改对象的成员变量**，在这个函数内部，**对象是只读的**
+
+```
+class Student {
+public:
+    int age;
+
+    void print() const {
+        age = 30;   // ❌尝试修改成员，编译会报错
+    }
+};
+```
+
+const 成员函数本质是：**this 指针**变成了 **const**，不能通过 this 修改成员变量
+
+| 函数                                   | 编译器理解为                      |
+| -------------------------------------- | --------------------------------- |
+| 普通成员函数：     `void print()`      | `void print(Student* this)`       |
+| `const` 成员函数：`void print() const` | `void print(const Student* this)` |
+
+**const对象只能调用const函数**
+
+编译器**不允许** `const` 对象调用非 `const` 成员函数
+
+但是，非 `const` 对象能调用 `const` 成员函数
+
+```
+class Student {
+public:
+    int age;
+
+    void print() {
+        // 无论函数内容是什么
+    }
+};
+
+int main() {
+    const Student s;
+    s.print();      // ❌报错！无论函数内容是什么，const对象只要调用非const函数，就报错！
+}
+```
+
+如果成员变量是指针 `int* p`，那么 `const` 成员函数 **不能改变指针p本身的指向**
+
+但可以改变指针指向的数据 `*p`（因为 const 修饰的是 this 指针，不是指针指向的数据）
+
+
+
+### 2. `static` 成员变量、函数
+
+`static` 成员变量：**整个类只有一份**
+
+```
+class Student {
+public:
+    static int count;   // 静态成员变量声明（类内声明）
+
+    Student() {
+        count++;
+    }
+};
+int Student::count = 0; // 静态成员变量定义（类外定义）
+```
+
+所有 Student 对象共享同一个 count，Student对象的大小**不包含 static 成员**
+
+```
+class A {
+public:
+    int x;
+    static int y;
+};
+```
+
+`sizeof(A)` = 4，而不是8
+
+**访问 static 成员变量**
+
+方式1，通过对象：`s1.count`
+
+方式2，通过类名（推荐）：`Student::count`
+
+
+
+`static` 成员函数：不属于某个对象，属于整个类；**不创建对象也能调用**
+
+```
+class Student {
+public:
+    static int count;   // static 成员变量
+
+    static void printCount() {   // static 成员函数
+        cout << count << endl;
+    }
+};
+
+int Student::count = 0;
+
+int main() {
+    Student::printCount();   // 调用static 成员函数，不创建对象也能调用
+
+    return 0;
+}
+```
+
+普通成员函数有 this 指针；
+
+而**静态成员函数没有 this**，所以**不能访问普通成员变量**，只能访问：static 成员变量、static 成员函数
+
+
+
+### 3. 友元（friend）
+
+#### 友元函数
+
+**friend 允许外部函数访问 private**
+
+如果函数 `void printX(A a)` 必须访问 `private`，可以**在类中声明**：
+
+```
+friend void printX(A a);
+```
+
+注意：`friend` **不是成员函数**，仍然是普通函数，只是拥有访问权限
+
+```
+class A {
+private:
+    int x;
+
+public:
+    A(int v) {
+        x = v;
+    }
+    friend void printX(A a); // 友元声明：printX 是 A 的朋友，可以访问 A 的 private 成员
+};
+
+void printX(A a) {
+    cout << a.x << endl;
+}
+
+int main() {
+    A a(10);
+    printX(a);
+
+    return 0;
+}
+```
+
+`friend `函数**不属于类**，**没有 this 指针**
+
+调用方式仍然是：`printX(a)` ；而不是：`a.printX()`
+
+
+
+#### 友元类
+
+```
+class A {
+private:
+    int x;
+
+public:
+    A(int v) {
+        x = v;
+    }
+    
+    friend class B; // 声明B类是 A 的朋友，B 的所有函数都 可以访问 A 的 private 成员
+};
+```
+
+意为：B 类的**所有成员函数**，**都可以访问** A 的 **private 成员**
+
+
+
+友元关系**不是继承**，而是**单向授权**
+
+A 把 B 设为 `friend`，并不意味着 B 也把 A 当 `friend`，`friend` **不是对称的**
+
+
+
+### 4. 对象数组 / 对象指针 / 对象引用
+
+**对象数组**：`Student arr[3];`
+
+对象数组的构造顺序（入栈）：
+
+- s[0] 构造
+- s[1] 构造
+- s[2] 构造
+
+对象数组的析构顺序（出栈）：
+
+- s[2] 析构
+- s[1] 析构
+- s[0] 析构
+
+对象数组**初始化**（如果类有构造函数）：
+
+```
+class Student {
+public:
+    int age;
+
+	Student(int a) {
+    	age = a;
+	}
+};
+```
+
+两种初始化方式：
+
+```
+Student s[3] = { Student(10), Student(20), Student(30) };
+```
+
+```
+Student s[3] = {10,20,30};
+```
+
+**对象指针**：`Student s;  Student* p = &s;`
+
+访问成员：`p->x;`  等价于：`*(p).x;`
+
+**对象引用**：`Student s;  Student& r = s;`
+
+r 是 s 的别名，r 和 s 共享同一块内存，修改 r 就是修改 s 
+
+最常见**函数参数写法**：`void func(const Student& s)`
+避免对象复制，保证函数不会修改对象
+
+
+
+## 第五大单元：运算符重载
+
+运算符重载：为**自定义类型**  **定义运算符**的行为
+
+运算符本质是**函数**
+
+运算符函数的基本形式：`Type  operator符号 (参数)`，常见参数写法：`const T&`
+
+例如： `Complex operator+(const Complex& other);`
+
+
+
+**运算符重载**有两种写法：
+
+**方式1：成员函数**
+
+```
+Complex operator+(const Complex& other)
+```
+
+调用方式：
+
+```
+c1 + c2
+```
+
+变成：
+
+```
+c1.operator+(c2)
+```
+
+------
+
+**方式2：友元函数**
+
+```
+friend Complex operator+(const Complex& a, const Complex& b);
+```
+
+调用方式：
+
+```
+operator+(a,b)
+```
+
+
+
+运算符重载的**限制**：不能创造新运算符，只能重载已有的，不能改变运算符参数数量，不能改变运算符优先级
+
+考试最常见的可重载运算符是：
+
+```
++
+=
+[]
+<<
+>>
+```
+
+
+
+### 1. `+` 重载
+
+####  写法一：成员函数版本
+
+`a + b `编译器理解为：`operator+(a, b)` ；如果是成员函数版本：`a.operator+(b)`
+
+```
+class Complex {
+public:
+    int real;
+    int imag;
+
+    Complex(int r, int i) {
+        real = r;
+        imag = i;
+    }
+
+    Complex operator+(const Complex& other) {
+        return Complex(real + other.real, imag + other.imag);
+        // 返回新对象
+    }
+};
+
+int main() {
+    Complex c1(1,2);
+    Complex c2(3,4);
+
+    Complex c3 = c1 + c2; // c3.real = 4   c3.imag = 6
+}
+```
+
+`c1 + c2`  编译器会转化为  `c1.operator+(c2)`，返回新的 Complex 对象给 c3
+
+#### 写法二：friend函数版本
+
+```
+class Complex {
+public:
+    int real;
+    int imag;
+
+    Complex(int r,int i) {
+        real = r;
+        imag = i;
+    }
+
+    friend Complex operator+(const Complex& a, const Complex& b);
+};
+
+Complex operator+(const Complex& a, const Complex& b) {
+    return Complex(a.real + b.real, a.imag + b.imag);
+}
+```
+
+| 写法       | 形式               |
+| ---------- | ------------------ |
+| 成员函数   | `c1.operator+(c2)` |
+| friend函数 | `operator+(c1,c2)` |
+
+
+
+
+
+### 2. =运算符重载
+
+初始化：`Book b2 = b1;   ` 调用**拷贝构造函数**
+
+赋值：`Book b2;  b2 = b1;`  调用赋值重载函数operator=
+
+```
+class Book{
+public:
+    int* pages;
+
+    Book(int p){
+        pages = new int(p);
+    }
+
+    Book(const Book& other){
+        pages = new int(*other.pages);
+    }
+
+    Book& operator=(const Book& other){  // 函数返回类型为：Book&，返回引用避免拷贝构造
+        if(this == &other)               // 检测自赋值，防止访问到已经释放的内存，造成程序崩溃
+            return *this;
+            
+        delete pages;                    // 先释放旧资源
+        pages = new int(*other.pages);   // 再申请新资源
+        return *this;
+    }
+
+    ~Book(){
+        delete pages;
+    }
+};
+```
+
+赋值表达式是函数调用，当写：`b2 = b1`
+
+编译器理解为：`b2.operator=(b1)`  ，返回值必须是：Book&，**返回引用**，避免拷贝构造
+
+`return *this`以支持**链式赋值** `a = b = c`
+
+表达式从右向左：`b = c`，调用：`b.operator=(c)`，返回：`b`；
+
+然后`a = b`，调用：`a.operator=(b)`，返回：当前对象`a`
+
+**要点：**
+
+- 返回值必须是：Type&，**返回引用**，避免拷贝构造
+- 必须检测自赋值：this == &other
+- 必须先delete旧资源，再new新资源
+- 支持链式赋值
+
+
+
+### 3.`[]` 运算符重载
+
+**让   自定义类   像数组一样   使用 `[]` 访问元素**
+
+```
+class Array {
+private:
+    int data[5];
+
+public:
+    int& operator[](int index) {
+        return data[index];
+    }
+};
+
+int main() {
+    Array arr;
+
+    arr[0] = 10;
+    arr[1] = 20;
+}
+
+
+```
+
+`arr[0] = 10`  编译器理解为  `arr.operator = 10`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
