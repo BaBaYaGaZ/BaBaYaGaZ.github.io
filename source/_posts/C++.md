@@ -4,6 +4,452 @@ date: 2026-03-09 15:49:51
 tags:
 ---
 
+# 第一大单元：语言基础扩展
+
+### **1. 引用**
+
+```
+int a = 5;
+int &b = a;   // b是a的引用（别名）
+b = 10;       // 改b就是改a，现在a也是10
+```
+
+- `int &b` 表示 `ref` 是一个 `int` 类型的引用。
+- `b` 是 `a` 的别名，对 `b` 的操作会直接作用于 `a`（引用不占用额外内存，编译器直接操作所引用的对象）。
+- 一旦引用被初始化为一个对象，就不能被指向到另一个对象。
+- 引用必须在创建时被初始化，不能为 `null`。
+- 引用必须绑定**变量**，不能是临时值。
+
+```
+int& r = 10; // 是非法的！
+```
+
+- 不支持多级间接访问（不能有引用的引用）。
+
+可以创建数组的引用，例如：`int (&ref)[10] = arr;`
+
+
+
+### **2. const**
+
+`const` 变量 **必须初始化**
+
+合法：
+
+```
+const int a = 10;
+```
+
+非法：
+
+```
+const int a;
+```
+
+**const与普通变量**
+
+```
+int a = 10;
+const int b = a;
+
+a = 20;
+```
+
+```
+b 会变吗？不会！b的值仍然是10
+```
+
+**指向常量的指针**：指针指向的区域值不能改变，可以改变指针的指向
+
+```
+int a = 10;
+int const * p = &a;
+const int * p = &a;
+// p指向的类型是int const（int常量），指的是常量，常量不可通过p修改
+a = 20; // 是合法的，int const * p = &a只限制不能通过p修改a，但a本身不是常量，可以修改
+```
+
+**常量指针**：指针指向的区域值可以变，不能改变指针的指向
+
+```
+int * const p
+// const p指向的类型是int，const p是常量指针，其指向不能改变，但int值可以改变
+```
+
+**const 引用是什么？**
+
+```
+const int& r = a;
+// r 是一个引用，引用的是 const int
+// 不能通过 r 修改 a
+// r 只是限制“通过 r 修改”，并没有让 a 变成 const
+```
+
+- const 引用可以绑定**临时值**：
+
+```
+const int& r = 10; // 是合法的
+```
+
+因为编译器会生成一个隐藏变量：
+
+```
+int temp = 10;
+const int& r = temp;
+```
+
+所以：r 绑定到这个临时对象
+
+**const引用的用途**
+
+```
+void print(const string& s) { // 不复制，传地址
+    cout << s << endl;
+}
+
+string name = "Tom";
+print(name);
+
+或者print("hello"); // const引用可以绑定临时对象"hello"
+```
+
+若用普通引用
+
+```
+void print(string& s)
+print("hello"); // 会报错，s不能绑定临时对象
+```
+
+若用值传递
+
+```
+void print(string s) // 每次调用都会复制一个 string
+```
+
+
+
+### **3. new/delete**
+
+允许程序**在运行时**（而不是编译时）分配内存
+
+#### **new：申请堆内存**
+
+```
+int* p = (int*)malloc(sizeof(int));
+
+int* p = new int;
+
+// 做了两件事
+ 1.在堆上申请内存，堆！！！
+ 2.返回地址
+```
+
+| 特性             | malloc  | new          |
+| ---------------- | ------- | ------------ |
+| 所属语言         | C       | C++          |
+| 返回类型         | `void*` | 指定类型指针 |
+| 是否需要强转     | 需要    | 不需要       |
+| 是否调用构造函数 | 不会    | 会           |
+| 释放方式         | free    | delete       |
+
+```
+// 分配单个变量
+int* p1 = new int;           // 分配内存，但未初始化，随机值
+int* p2 = new int(10);      // 分配内存并初始化为10
+int* p3 = new int();        // 分配内存并初始化为0
+
+// 分配数组
+int* arr = new int[10];      // 分配10个int的数组
+```
+
+#### **delete：释放堆内存**（对指针/地址进行操作）
+
+```
+int* p = new int(10);
+int* arr = new int[10]; 
+
+// 释放单个变量的堆内存
+delete p;
+
+// 释放数组堆内存
+delete[] arr;
+```
+
+不释放堆内存会产生**内存泄漏**，但通常不会立即报错
+
+#### **栈对象 vs 堆对象**
+
+```
+int a = 10; // a是栈对象，函数结束自动销毁
+int* p = new int(10); // *p(p指向的int对象)是堆对象，delete手动销毁
+```
+
+`*p`（p指向的 int 对象）是堆对象，`p`是栈对象
+
+#### **构造函数和析构函数中的new和delete**
+
+```
+Book* p = new Book;  // new 会触发构造函数
+
+1.分配内存
+2.调用构造函数
+```
+
+```
+delete p;    // delete 会触发析构函数
+
+1.调用析构函数
+2.释放内存
+```
+
+`malloc / free` 不会调用构造、析构函数，所以在 C++里，对象必须用 `new`
+
+delete nullptr（对空指针delete）是**安全操作**，不会报错
+
+delete 悬空指针（已经被释放过的内存），是**未定义操作**，会程序崩溃或报错！
+
+```
+delete p1;
+delete p1; // 尝试释放已被释放的内存，程序崩溃或报错！
+```
+
+
+
+### **4. string**
+
+```
+// C
+char s[100] = "hello";
+char* s = "hello";
+
+// C++
+#include <string>
+string s = "hello";
+```
+
+`string` **不是关键字**，和class的本质一样，而是标准库里的**类**
+
+```
+// C
+char s[100];
+s = "hello";   // 错误❌
+
+// C++
+string s1;
+s1 = "world";  // 正确✅
+```
+
+`string` 可以**直接拼接**
+
+```
+string s1 = "hello";
+string s2 = "world";
+string s3 = s1 + s2; // s3 = "helloworld"
+string s4 = s1 + " " + s2; // s4 = "hello world"
+```
+
+`string` **求长度length()**，length()是string对象的**成员函数**
+
+```
+string s = "hello";
+s.length(); // 5
+```
+
+`string` 也能像**数组一样**访问字符
+
+```
+string s = "hello";
+cout << s[0] << endl; // h
+cout << s[1] << endl; // e
+```
+
+
+
+### 5. cin/cout
+
+```
+cin >> x;
+cout << x << endl;
+```
+
+`<<` 叫 插入运算符
+
+`>>`叫 提取运算符
+
+**连续输入输出**
+
+```
+int a, b;
+cin >> a >> b;
+cout << a << " " << b << endl;
+```
+
+
+
+### **6. 函数重载（Overload）**
+
+在**同一作用域**内，允许存在**多个同名函数**，只要它们的**参数列表不同**
+
+```
+// 函数名同名，C 不支持，但 C++ 支持
+int add(int a, int b);
+double add(double a, double b);
+```
+
+对于**参数列表不同**
+
+情况1：参数**个数**不同
+
+```
+void f(int a);
+void f(int a, int b);
+```
+
+情况2：参数**类型**不同
+
+```
+void f(int a);
+void f(double a);
+```
+
+情况3：参数**顺序**不同（类型不同的前提下）
+
+```
+void f(int a, double b);
+void f(double a, int b);
+```
+
+**仅仅返回值不同，不算重载**
+
+```
+int f(int a);
+double f(int a);
+// 返回值不同，但参数列表完全一样，不算重载
+```
+
+C++ **判断重载**时，不看返回值，**只看参数列表**
+
+
+
+### **7. 默认参数**
+
+在**函数声明或定义**中，为参数**指定默认值**；调用时如果**没传这个参数**，就**使用默认值**
+
+```
+void print(int x, int y = 10) {  // 为参数 y 指定默认值 10
+    cout << x << " " << y << endl;
+}
+
+int main() {
+    print(5);     // 只传了一个参数，所以 y = 10
+    print(5, 20); // 传了第二个参数，所以 y = 20
+    return 0;
+}
+```
+
+默认参数必须**从右往左连续给出**，默认参数**只能放在**参数列表的**右边**
+
+合法：
+
+```
+void f(int a, int b = 10, int c = 20);
+```
+
+非法：
+
+```
+void f(int a = 10, int b, int c = 20);
+```
+
+默认参数**和函数重载**有时候会**冲突**，造成歧义（二义性）
+
+```
+void f(int a);
+void f(int a, int b = 10);
+
+f(5); // 编译器会疑惑，调第一个，还是调第二个
+```
+
+
+
+### **8. bool**
+
+C 语言里 **没有真正的布尔类型**
+
+约定：0 表示 false；  非0 表示 true
+
+C++提供了真正的布尔类型，只有两个值：**true、false**（true表示1，false表示0）
+
+`bool` **占 1 B**
+
+`bool` 和整数允许**互相转换**
+
+```
+bool a = 10; // 结果是：a = true（非0 → true）
+bool a = true; int x = a; // x值为1
+```
+
+
+
+### **9.  inline内联函数**
+
+**适合**：非常短的函数、频繁调用、逻辑简单
+
+**不适合**：函数很长、递归函数、复杂逻辑
+
+**建议**编译器**把函数展开**，而不是调用；**没有函数调用**，可以**减少开销**
+
+```
+inline int add(int a, int b) {
+    return a + b;
+}
+x = add(3,4); // 内联函数可能被编译器直接展开为：x = 3 + 4;
+```
+
+inline **只是建议**，编译器可以接受或**拒绝**，函数很复杂时，编译器就不会展开
+
+**类内定义的函数**默认 inline
+
+```
+class A {
+public:
+    void f() {
+        cout << "hello";
+    }
+};
+```
+
+
+
+
+
+# **第二大单元：类与对象**
+
+### **1. 类、对象、访问权限**
+
+C++ 的类不仅可以存**成员变量**，还可以存**成员函数**
+
+```
+class Student {
+public:
+    int age;
+    int score;
+
+    void print() {
+        cout << age << " " << score << endl;
+    }
+};
+
+Student s1;
+Student s2;
+```
+
+**成员函数**只有一份，存放在**代码区**；对象里只有成员变量
+
+所以对象大小只取决于**成员变量**
+
+
+
 **访问说明符**
 
 | 访问位置               | `public` | `protected` | `private`  |
@@ -16,179 +462,745 @@ tags:
 
 
 
-在C++的`class`里，**变量和函数都可以放**：
+### **2. 构造函数**
+
+**没有构造函数**的类，在**对象创建**后，成员变量**没有初始化**，成员变量的值是随机值
+
+C++ 设计了**构造函数**，使**对象创建时自动执行初始化代码**
 
 ```
 class Student {
 public:
-    // 变量（属性）
-    char name[20];
     int age;
-    
-    // 函数（方法）- 这是C++新增的！
-    void introduce() {
-        cout << "我叫" << name << "，今年" << age << "岁";
+    int score;
+
+    Student() {  // 构造函数
+        age = 18;
+        score = 0;
     }
 };
 ```
 
+特征1：**函数名**必须和**类名 ** **一样**
 
-
-**运算符重载**：让已有的运算符（如 `+`、`-`、`*`、`/`、`=`、`<<` 等）能够**对自定义类型（类对象）进行运算**。
-
-**本质**：是一种特殊的**函数重载**
-
-运算符重载的语法格式：
+特征2：**没有返回类型**
 
 ```
-返回值类型 operator 运算符 (参数列表) {
-    // 实现运算逻辑
-}
+Student()      // ✅正确的构造函数
+void Student() // ❌如果写了 void，它就变成普通函数了
 ```
 
-例如：
+特征3：对象创建时**自动调用**，构造函数不需要手动调用
 
 ```
-class Complex {//类似于创建Complex结构体
-public://表示公有，外部可访问
-    double real, imag;
-    
-    // 重载 + 运算符
-    Complex operator+(const Complex& other) {//在结构体内重载加法函数，Complex为返回类型，operator+为函数名
-        Complex c;
-        c.real = this->real + other.real;//this指向c1，this->real就是c1.real
-        c.imag = this->imag + other.imag;
-        return c;
-    }
-};
-
-// 调用时
-Complex c1, c2;
-Complex c3 = c1 + c2; //c1是调用者（左操作数），c2是参数other
+Student s;  // 自动执行Student()构造函数
 ```
 
-a + b 等价于 a.operator+(b)
-
-
-
-**引用是什么？**
+**带参数的构造函数**
 
 ```
-int a = 5;
-int &b = a;   // b是a的引用（别名）
-b = 10;       // 改b就是改a，现在a也是10
-```
-
-- `int &b` 表示 `ref` 是一个 `int` 类型的引用。
-- `b` 是 `a` 的别名，对 `b` 的操作会直接作用于 `a`（引用不占用额外内存，编译器直接操作所引用的对象）。
-- 一旦引用被初始化为一个对象，就不能被指向到另一个对象。
-- 引用必须在创建时被初始化，不能为 `null`。
-- 引用的对象必须是一个变量。
-- 不支持多级间接访问（不能有引用的引用）。
-
-可以创建数组的引用，例如：`int (&ref)[10] = arr;`
-
-
-
-**this的核心概念**：
-
-- `this`是一个**指针**，指向**当前对象自己**
-- 哪个对象调用了这个函数，`this`就指向谁（左操作数为调用者）
-
-
-
-`::` 叫**作用域解析运算符**，含义：“的”
-
-**场景1：在类外面定义成员函数**
-
-```
-class Complex {
+class Student {
 public:
-    double real, imag;
-    
-    // 方式1：直接在类里面写完整函数（简短时用）
-    void print() {
-        cout << real << "+" << imag << "i";
+    int age;
+    int score;
+
+    Student(int a, int s) {
+        age = a;
+        score = s;
     }
-    
-    // 方式2：只声明，后面再定义（函数长时用）
-    Complex operator+(const Complex& other);
 };
 
-// 在类外面定义operator+函数
-// 👇 这里必须用::告诉编译器：这个operator+是Complex类的
-Complex Complex::operator+(const Complex& other) {
-    Complex c;
-    c.real = this->real + other.real;
-    c.imag = this->imag + other.imag;
-    return c;
-}
+Student s(20, 90);
 ```
 
+**构造函数重载**（C++允许多个构造函数共存）
 
+```
+class Student {
+public:
+    int age;
+    int score;
 
-**场景2：访问被隐藏的同名成员**
+    Student() {
+        age = 18;
+        score = 0;
+    }
+    Student(int a, int s) {
+        age = a;
+        score = s;
+    }
+};
+
+Student s1; 
+Student s2(20, 90);
+```
+
+**默认构造函数**（没有参数的构造函数）
+
+如果**没有写**任何**构造函数**，编译器会**自动生成A( )**
 
 ```
 class A {
 public:
-    int value = 10;
-    void func() { cout << "A::func" << endl; }
+    int x;
 };
 
-class B : public A {  // B继承A
+A a;  // 合法，因为有A()
+```
+
+```
+class A {
 public:
-    int value = 20;   // 隐藏了A的value
-    void func() {     // 隐藏了A的func
-        cout << "B::func" << endl;
-        
-        // 想访问A的value怎么办？
-        cout << A::value;  // 👈 用::指定是A的value
-        
-        // 想调用A的func怎么办？
-        A::func();  // 👈 用::指定是A的func
+    int x;
+    A(int a) {
+    	x = a;
+    }
+};
+
+A a;  // 非法，编译错误，没有A()
+```
+
+**对象创建的三种写法**
+
+```
+Student s;
+// 调用：Student()
+```
+
+```
+Student s(20,90);
+// 调用：Student(int,int)
+```
+
+```
+Student s = Student(20,90);
+// 语义上等价于：Student s(20,90)
+```
+
+
+
+### **3. 析构函数**
+
+```
+class Student {
+public:
+    Student() {
+        cout << "constructor" << endl;
+    }
+
+    ~Student() {
+        cout << "destructor" << endl;
+    }
+};
+
+int main() {
+    Student s;
+    cout << "main running" << endl;
+    return 0;
+}
+```
+
+运行结果：
+
+```
+constructor
+main running
+destructor
+```
+
+当程序运行到 `Student s` ，会创建对象并**自动调用构造函数**
+
+当 `main` 函数结束时，对象生命周期结束会销毁对象，**自动调用析构函数**
+
+特点1：**函数名前有 `~`**
+
+```
+~Student() // ~ 叫 析构符
+```
+
+特点2：**没有返回类型**
+
+```
+void ~Student() // ❌错误！不能写返回值
+```
+
+特点3：**不能有参数**，析构函数只能写成：
+
+```
+~Student()
+```
+
+```
+~Student(int x) // ❌错误！
+```
+
+所以，析构函数 **不能重载**，一个类 **最多只有一个析构函数**
+
+
+
+**析构函数的调用时机**
+
+情况1：栈对象生命周期结束（main结束，对象a销毁，调用析构函数）
+
+```
+int main() {
+    A a;
+    return 0;
+}
+```
+
+情况2：作用域结束（进入代码块，创建a，离开代码块，销毁a，调用析构函数）
+
+```
+int main() {
+    {
+        A a;  // 栈对象
+    }         // 会调用~A()，但栈不归delete管，不会发生delete
+    return 0;
+}
+```
+
+情况3：`delete` **堆对象**（new A，创建对象，delete p，调用析构函数，释放内存）
+
+```
+int main() {
+    A* p = new A;  // new出来的堆对象，不能自动销毁，只能手动delete
+    delete p;      // delete 会触发析构函数 ~A()
+    return 0;
+}
+```
+
+
+
+**堆对象**的生命周期，**必须由 delete 结束**，由**delete调用析构函数**
+
+如果没有delete，**析构函数不会被调用**
+
+**析构函数**负责**清理对象内部资源**，**delete**负责**销毁对象**
+
+```
+class A
+{
+    int* data;
+public:
+    A() {
+        data = new int[100];
+    }
+    ~A() {
+        delete[] data; // 负责清理对象 A 的内部资源int[100]
+    }
+};
+A* p = new A;
+delete p;  // 负责销毁对象 A
+
+// delete p 先调用析构函数清理A内部资源，再销毁对象A
+```
+
+
+
+**构造顺序**：先创建先构造；**析构顺序**：后创建先析构（栈思想）
+
+```
+class A {
+public:
+    A()  { cout << "A construct\n"; }
+    ~A() { cout << "A destruct\n"; }
+};
+
+int main() {
+    A a;
+    A b;
+    A c;
+}
+```
+
+构造顺序：a, b, c（a最先进栈，c最后进栈）
+
+析构顺序：c, b, a（c最先出栈，a最后出栈）
+
+```
+class B {
+public:
+    B()  { cout << "B construct\n"; }
+    ~B() { cout << "B destruct\n"; }
+};
+
+class A {
+    B b;
+public:
+    A()  { cout << "A construct\n"; }
+    ~A() { cout << "A destruct\n"; }
+};
+
+A a;
+```
+
+构造顺序：B, A
+
+析构顺序：A, B
+
+```
+class A {
+    int x;
+    int y;
+    int z;
+public:
+    A()  { cout << "A construct\n"; }
+    ~A() { cout << "A destruct\n"; }
+};
+```
+
+成员变量构造顺序：x, y, z
+
+成员变量析构顺序：z, y, x
+
+
+
+### **4. this指针**
+
+`this` 是一个指针，永远指向**当前对象**
+
+**哪个对象**调用成员函数，this 就指向**哪个对象**
+
+```
+class Student {
+public:
+    int age;
+
+    void setAge(int a) {
+        this->age = a; // 当前发起调用的对象的 age
+    }
+
+    void print() {
+        cout << age << endl;
+    }
+};
+
+int main() {
+    Student s1;
+    Student s2;
+
+    s1.setAge(20); // this = &s1
+    s2.setAge(30); // this = &s2
+
+    s1.print();
+    s2.print();
+
+    return 0;
+}
+```
+
+很多时候， `this->` **可以省略**
+
+```
+void setAge(int a) {
+    age = a;       // 编译器会自动理解为：this->age = a
+}
+```
+
+但有一种情况**必须写** `this`：成员变量和参数**同名**
+
+```
+class Student {
+public:
+    int age;
+
+    void setAge(int age) {
+        age = age; ❌ 
+        //正确写法：this->age = age;✅
     }
 };
 ```
 
 
 
-**场景3：访问静态成员**
-
-静态成员属于类，不属于某个对象，所以用 `类名::` 访问：
+`this` 的类型是Student*，`*this`是当前对象本身
 
 ```
-class Math {
+return *this; // 意为：返回当前对象
+```
+
+`this`  是隐含参数，每个**成员函数都有**
+
+```
+void setAge(int a)
+在底层类似于：
+void setAge(Student* this, int a)
+```
+
+
+
+### 5. 类内声明、类外定义、`::`
+
+`::` 叫 **作用域解析运算符**，含义：“的”
+
+```
+Student::print
+```
+
+意为：Student 类的 print 函数
+
+`::` 的另一个常见用法：**访问全局作用域**（本质仍然是 “从哪个作用域里找名字” ）
+
+```
+int value = 100;
+
+int main()
+{
+    int value = 10;
+    cout << value << endl;    // 局部变量value，10
+    cout << ::value << endl;  // ::value表示全局作用域下的value，100
+    return 0;
+}
+```
+
+
+
+**类内声明、类外定义的函数**
+
+```
+class Student {
 public:
-    static double PI;  // 静态成员变量
-    static double square(double x) { return x * x; }  // 静态函数
+    int age;
+    void print();       // 类内只写声明
 };
 
-// 静态成员需要在类外面初始化
-double Math::PI = 3.14159;
+void Student::print() {   // 类外进行定义
+    cout << age << endl;  // 本质仍然是：this->age = a;
+    // 虽然在类外定义，但本质仍是成员函数，有成员访问权限，可以直接使用age成员
+}
 
 int main() {
-    // 直接通过类名访问，不需要创建对象
-    cout << Math::PI;        // 3.14159
-    cout << Math::square(5); // 25
+    Student s;
+    s.age = 20;
+    s.print();
+    return 0;
+}
+```
+
+不仅普通成员函数可以，**构造函数、析构函数也可以**类内声明、类外定义
+
+```
+class Student {
+public:
+    int age;
+    Student();
+    ~Student();
+};
+
+Student::Student() {
+    cout << "constructor" << endl;
+}
+Student::~Student() {
+    cout << "destructor" << endl;
 }
 ```
 
 
 
-**场景4：命名空间**
+
+
+# 第三大单元：对象复制机制
+
+### **1. 对象复制（拷贝构造函数）**
 
 ```
-#include <iostream>
-using namespace std;  // std是命名空间
+class Student {
+public:
+    int age;
 
-int main() {
-    // 如果不写using namespace std，就要这样：
-    std::cout << "hello";  // cout在std命名空间里
+    Student(int a) {
+        age = a;
+    }
     
-    // ::左边是命名空间名，右边是里面的东西
+    Student(const Student& other)
+    {
+        age = other.age;
+    }
+};
+
+int main() {
+    Student s1(20);
+    Student s2 = s1; // s1.age == s2.age
+    return 0;
 }
 ```
+
+实际上这**不是赋值**，而**是初始化**，并且调用了一个特殊函数：**拷贝构造函数**
+
+**拷贝构造函数标准形式：**
+
+```
+Student(const Student& other)
+// other是一个引用，引用的类型是const Student，不能通过other修改实参
+```
+
+意为：用一个已有对象，创建一个新对象
+
+**拷贝构造函数的三个特点：**
+
+特点1：函数名和类名一样
+
+特点2：参数是**同类对象的引用**（必须写引用，防止复制对象再次调用拷贝构造，导致无限递归）
+
+特点3：参数通常加 `const`（拷贝时不应该修改原对象）
+
+**调用拷贝构造函数的时机：**
+
+情况1：对象**初始化**
+
+```
+Student s2 = s1;
+Student s2(s1);
+// 两种写法完全一样
+```
+
+情况2：函数**参数传值**（调用 func(x)，参数 a 是传值，复制 x，调用拷贝构造）
+
+```
+class A {
+public:
+    A() {
+        cout << "constructor" << endl;
+    }
+    A(const A& other) {
+        cout << "copy constructor" << endl;
+    }
+};
+
+void func(A a){
+}
+
+int main() {
+    A x;
+    func(x);
+    return 0;
+}
+```
+
+情况3：函数**返回对象**
+
+```
+A func() {
+    A a;
+    return a; // 也会产生对象复制，会调用拷贝构造函数
+}
+```
+
+
+
+如果不写拷贝构造函数，编译器会生成一个**默认**拷贝构造函数，进行**逐成员复制**
+
+**double free 经典bug：**
+
+当类里面有 **指针成员** 时：
+
+```
+class Book {
+public:
+    int* pages;
+};
+```
+
+默认复制会变成 pages **指针地址复制**
+
+结果是：两个对象，指向同一块内存，当两个对象析构时，会delete 同一块内存
+
+
+
+### 2. 浅拷贝 vs 深拷贝（对新变量进行初始化）
+
+**浅拷贝**：**只复制**成员变量的**值**，而**不复制**成员变量**指向的资源**
+
+```
+class Book {
+public:
+    int* pages;
+
+    Book(int p) {
+        pages = new int; // 对象内部成员page指向的资源在堆上
+        *pages = p;
+    }
+    ~Book() {
+        delete pages;
+    }
+};
+
+int main() {
+    Book b1(100); // 对象本身在栈上
+    Book b2 = b1;
+
+    cout << *b1.pages << endl;
+    cout << *b2.pages << endl;
+
+    return 0;
+}
+```
+
+当程序结束时，很可能会出现 程序崩溃 或 报错：
+
+```
+double free
+```
+
+编译器使用**默认版本拷贝构造函数**（**浅拷贝**），逐成员复制
+
+复制行为是： `b2.pages = b1.pages`（只是复制了地址，两个对象共享**同一块内存**）
+
+析构时会 **重复释放同一块内存（double free）**
+
+
+
+**深拷贝**：复制对象时，为新对象**重新申请一块内存**，并**复制数据**
+
+实现深拷贝，需要自己写 **拷贝构造函数**
+
+```
+class Book {
+public:
+    int* pages;
+
+    Book(int p) {
+        pages = new int;
+        *pages = p;
+    }
+    // 拷贝构造函数
+    Book(const Book& other) {
+        pages = new int;          // 新申请内存
+        *pages = *other.pages;    // 复制数据
+    }
+    ~Book() {
+        delete pages;
+    }
+};
+Book b2 = b1;
+```
+
+程序结束后不会崩溃或报错
+
+调用：`Book(const Book& other)`
+
+执行过程：
+
+1. 为 b2.pages 申请新的堆内存
+2. 把 b1.pages 的值复制过去
+
+**深拷贝的标准写法**
+
+当类里**有指针成员**时，拷贝构造函数通常写成：
+
+```
+ClassName(const ClassName& other) {
+    pointer = new Type;
+    *pointer = *other.pointer;
+}
+```
+
+
+
+### 3. 赋值运算符重载`operator=`（对已有变量进行赋值）
+
+```
+class Book {
+public:
+    int* pages;
+
+    Book(int p) {
+        pages = new int;
+        *pages = p;
+    }
+
+    ~Book() {
+        delete pages;
+    }
+};
+int main() {
+    Book b1(100);
+    Book b2(200);
+
+    b2 = b1;
+    return 0;
+}
+```
+
+默认赋值行为：`b2.pages = b1.pages`，原来 b2.pages 指向的**内存丢失**，两个对象**共享同一块内存**
+
+程序结束时，再次产生**double free**
+
+
+
+**正确做法：**自己写：`Book& operator=(const Book& other)`
+
+```
+class Book {
+public:
+    int* pages;
+
+    Book(int p) {
+        pages = new int;
+        *pages = p;
+    }
+    ~Book() {
+        delete pages;
+    }
+    
+    // 拷贝构造函数（深拷贝）
+    Book(const Book& other) {
+        pages = new int;
+        *pages = *other.pages;
+    }
+    
+    // 重载 operator=
+    Book& operator=(const Book& other) { // 返回类型是 Book&，返回引用，避免产生额外对象复制
+        if (this == &other)              // 防止自赋值
+        	return *this;
+        
+        delete pages;                    // 释放当前对象原本的资源（b2=b1，释放b2的资源）
+        pages = new int;                 // 新申请内存
+        *pages = *other.pages;           // 复制数据把b1的内容复制到b2的新内存
+        return *this;                    // 返回b2对象本身（this为指向b2的指针，*this为b2）
+    }    
+};
+
+int main() {
+    Book b1(100);
+    Book b2(200);
+
+    b2 = b1; // b2调用operator=，参数为b1，等价于b2.operator=(b1)
+    return 0;
+}
+```
+
+
+
+### 4. Rule of Three（三法则）
+
+如果一个类需要自己管理资源（例如 `new` 出来的内存），通常需要同时实现：
+
+- 析构函数
+- 拷贝构造函数
+- 赋值运算符
+
+| 场景                                     | 调用函数  |
+| ---------------------------------------- | --------- |
+| 初始化：`Book b2 = b1;` / `Book b2(b1);` | 拷贝构造  |
+| 赋值：`b2 = b1;`                         | operator= |
+
+
+
+# 第四大单元：类的补充
+
+### 1. `const` 成员函数
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -247,31 +1259,7 @@ int main() {
 
 
 
-**`new`和`delete`**
 
-允许程序**在运行时**（而不是编译时）分配内存
-
-**new 的基本语法**
-
-```
-// 分配单个变量
-int* p1 = new int;           // 分配内存，但未初始化
-int* p2 = new int(10);      // 分配内存并初始化为10
-int* p3 = new int();        // 分配内存并初始化为0
-
-// 分配数组
-int* arr = new int[10];      // 分配10个int的数组
-```
-
-**delete 的基本语法（对指针/地址进行操作）**
-
-```
-// 释放单个变量
-delete p;    // 释放p指向的内存
-
-// 释放数组
-delete[] arr;    // 释放数组内存，注意要加[]
-```
 
 **new 的工作原理**
 
@@ -347,3 +1335,6 @@ delete arr;  // ❌ 只调用第1个对象的析构函数，后两个对象的�
 | **速度**     | 快               | 慢                        |
 | **大小**     | 小（MB级）       | 大（GB级）                |
 | **生命周期** | 随函数结束而结束 | 直到手动释放              |
+
+
+
