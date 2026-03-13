@@ -136,7 +136,6 @@ void print(string s) // 每次调用都会复制一个 string
 
 ```
 int* p = (int*)malloc(sizeof(int));
-
 int* p = new int;
 
 // 做了两件事
@@ -159,23 +158,30 @@ int* p2 = new int(10);      // 分配内存并初始化为10
 int* p3 = new int();        // 分配内存并初始化为0
 
 // 分配数组
-int* arr = new int[10];      // 分配10个int的数组
+int* arr = new int[10];      // 调用10次构造函数，分配10个int的数组
 ```
+
+
 
 #### **delete：释放堆内存**（对指针/地址进行操作）
 
 ```
 int* p = new int(10);
-int* arr = new int[10]; 
+int* arr = new int[10];  // 调用10次构造函数，分配10个int的数组
 
 // 释放单个变量的堆内存
 delete p;
 
 // 释放数组堆内存
-delete[] arr;
+delete[] arr;  // 调用10次析构函数
+
+// 错误写法：
+delete arr;  // ❌只调用第1个对象的析构函数，后两个对象的内存泄漏！
 ```
 
 不释放堆内存会产生**内存泄漏**，但通常不会立即报错
+
+
 
 #### **栈对象 vs 堆对象**
 
@@ -185,6 +191,17 @@ int* p = new int(10); // *p(p指向的int对象)是堆对象，delete手动销�
 ```
 
 `*p`（p指向的 int 对象）是堆对象，`p`是栈对象
+
+| 特性         | 栈（Stack）      | 堆（Heap）                |
+| :----------- | :--------------- | :------------------------ |
+| **创建方式** | `Book b(...)`    | `Book* p = new Book(...)` |
+| **内存分配** | 自动             | 手动（new）               |
+| **释放方式** | 自动（出作用域） | 手动（delete）            |
+| **速度**     | 快               | 慢                        |
+| **大小**     | 小（MB级）       | 大（GB级）                |
+| **生命周期** | 随函数结束而结束 | 直到手动释放              |
+
+
 
 #### **构造函数和析构函数中的new和delete**
 
@@ -202,16 +219,40 @@ delete p;    // delete 会触发析构函数
 2.释放内存
 ```
 
-`malloc / free` 不会调用构造、析构函数，所以在 C++里，对象必须用 `new`
+`malloc / free` 不会调用构造、析构函数（对象内部的资源无法被释放），所以在 C++里，对象必须用 `new`
 
 delete nullptr（对空指针delete）是**安全操作**，不会报错
-
 delete 悬空指针（已经被释放过的内存），是**未定义操作**，会程序崩溃或报错！
 
 ```
 delete p1;
 delete p1; // 尝试释放已被释放的内存，程序崩溃或报错！
 ```
+
+
+
+**new 的工作原理**
+
+```
+Book* book = new Book("C++教程", "张三", 500);
+
+// 实际上发生了三件事：
+// 1. 分配内存：operator new(sizeof(Book)) 分配足够的内存
+// 2. 构造对象：在分配的内存上调用Book的构造函数
+// 3. 返回指针：返回指向该内存的指针
+```
+
+**delete 的工作原理**
+
+```
+delete book;
+
+// 实际上发生了两件事：
+// 1. 调用析构函数：~Book() 清理对象资源
+// 2. 释放内存：operator delete(book) 释放内存
+```
+
+
 
 
 
@@ -273,7 +314,6 @@ cout << x << endl;
 ```
 
 `<<` 叫 插入运算符
-
 `>>`叫 提取运算符
 
 **连续输入输出**
@@ -445,7 +485,6 @@ Student s2;
 ```
 
 **成员函数**只有一份，存放在**代码区**；对象里只有成员变量
-
 所以对象大小只取决于**成员变量**
 
 
@@ -1563,7 +1602,7 @@ Complex operator+(const Complex& a, const Complex& b) {
 
 
 
-### 2. =运算符重载
+### 2. = 运算符重载
 
 初始化：`Book b2 = b1;   ` 调用**拷贝构造函数**
 
@@ -1616,7 +1655,7 @@ public:
 
 
 
-### 3.`[]` 运算符重载
+### 3.`[]` 运算符重载（必须是成员函数）
 
 **让   自定义类   像数组一样   使用 `[]` 访问元素**
 
@@ -1626,7 +1665,7 @@ private:
     int data[5];
 
 public:
-    int& operator[](int index) {
+    int& operator[](int index) { // 获取data[i]的引用
         return data[index];
     }
 };
@@ -1634,57 +1673,174 @@ public:
 int main() {
     Array arr;
 
-    arr[0] = 10;
+    arr[0] = 10; // arr[0]是在调用operator[]，以返回data[0]的引用，再将10赋值给data[10]的引用
     arr[1] = 20;
 }
 
 
 ```
 
-`arr[0] = 10`  编译器理解为  `arr.operator = 10`
+`arr[0] = 10`  编译器理解为  `(arr.operator[](0)) = 10`
+意为：arr调用operator[] ()函数，参数为0，返回data[0]的引用，再将10赋值给该引用
+
+重载函数 `int& operator[](int index)` 的返回类型为`int&` ，
+如果函数返回的是 `int`，返回的是临时值 10，不能被赋值，编译错误
+如果函数返回的是引用 `int&`，返回的是 `data[0]` 的引用，再给 `data[0]` 的引用赋值 10
+
+大多数运算符既可以是成员函数，也可以是friend函数，但**`[]`必须是成员函数**
+因为**左操作数必须是对象**，`arr[i]`必须是`arr.operator[](i)`（成员函数），而非`operator[](arr,i)`（friend函数）
 
 
 
+### 4. `<<` 与 `>>` 运算符重载（写成友元函数）
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-**继承就像"复制" + "扩展"**
+#### cout：
 
 ```
-class A { ... };        // 基类（父类）
-class B : public A { ... }; // 派生类（子类），这里的public是继承方式
+cout << c1;
 ```
+
+`<<` 不是语言关键字，它本质是一个函数调用：
+
+```
+operator<<(cout, c1);
+或
+cout.operator<<(c1);
+```
+
+**`cout` 是一个 `ostream` 对象**
+
+如果将`<<` 运算符重载写成成员函数：
+`c1.operator<<(cout)` 也就是 `c1 << cout` 而不是 `cout << c1`
+
+因此`<<`  运算符重载，通常写成`friend`函数：
+`operator<<(cout, c1)` 也就是 `cout << c1`
+
+`<<`重载函数声明：
+
+```
+friend ostream& operator<<(ostream& os,const Complex& c);
+```
+
+返回`ostream&`，是为了支持链式输出：`cout << c1 << c2`，相当于`operator<<(operator<<(cout, c1), c2)`，`operator<<(cout, c1)` 执行完后返回`cout`，继续执行 `operator<<(cout, c2)`
+
+
+
+#### cin：
+
+```
+cin >> c2;
+```
+
+本质上是：
+
+```
+cin.operator>>(c);
+```
+
+**`cin` 是一个 `istream` 对象**
+
+`>>`重载函数声明：
+
+```
+friend istream& operator>>(istream& is, Complex& c);
+```
+
+返回`istream&`，是为了支持链式输入：`cin >> c1 >> c2`，相当于`operator>>(operator>>(cin, c1), c2)`
+
+第二个参数为`Complex& c`是因为：输入操作需要修改对象 `c` 的内容，不能加`const`
+
+
+
+```
+class Complex {
+private:
+    int real;
+    int imag;
+
+public:
+    Complex(int r,int i) {
+        real = r;
+        imag = i;
+    }
+    friend ostream& operator<<(ostream& os,const Complex& c); 
+    // 返回值类型是 ostream&，第一个参数是输出流对象 os，第二个参数是要输出的复数对象 c
+    // 第二个参数const Complex& c，const为了不修改对象，Complex&为了不拷贝对象
+    
+    friend istream& operator>>(istream& is, Complex& c);
+};
+
+ostream& operator<<(ostream& os,const Complex& c) { 
+    os << c.real << "+" << c.imag << "i";
+    // 把 c.real 和 c.imag 的内容写入 os
+    return os;
+    // 把 os 本身返回
+}
+
+istream& operator>>(istream& is, Complex& c) {
+    is >> c.real >> c.imag;
+    // 从输入流里读两个整数,分别存入 c.real 和 c.imag
+    return is;
+    // 把 is 本身返回
+}
+
+int main() {
+    Complex c(3,4);
+    cout << c << endl;  //输出3+4i
+}
+```
+
+
+
+### 5. 前置 `++` 与 后置 `++` 运算符重载
+
+```
+class Counter {
+public:
+    int value;
+
+    Counter(int v) {
+        value = v;
+    }
+    // 前置++
+    Counter& operator++() {   // 返回引用
+        value++;
+        return *this;
+    }
+    
+    // 后置++
+    Counter operator++(int) { // 返回旧值，需要返回temp对象，而非原对象的引用
+        Counter temp = *this; // 保存旧对象
+        value++;              // value++
+        return temp;          // 返回旧对象
+    }
+};
+
+int main() {
+    Counter c(5);
+    ++c;                     // 编译器理解为：c.operator++();
+    cout << c.value << endl; // 6
+}
+```
+
+| 运算符 | 对应函数          |
+| ------ | ----------------- |
+| `++a`  | `operator++()`    |
+| `a++`  | `operator++(int)` |
+
+ 
+
+
+
+
+
+# 第六大单元：继承与多态
+
+### 1. 继承基本语法
+
+`class 子类 : 继承方式 父类`
+
+子类 又名 **派生类**；父类 又名 **基类**
 
 **继承的本质**：`B` 继承了 `A`，意味着：
 
@@ -1692,124 +1848,333 @@ class B : public A { ... }; // 派生类（子类），这里的public是继承�
 - `B` 可以添加自己的新成员
 - `B` 可以修改（重写）从 `A` 继承来的某些函数
 
-**三种继承方式：**
+```
+class Person{
+public:
+    string name;
+    int age;
 
-| 继承方式         | 效果                             | 最常用                     |
-| :--------------- | :------------------------------- | :------------------------- |
-| `public` 继承    | 保持A中原有的访问权限            | ✅ 最常用（表示"is-a"关系） |
-| `protected` 继承 | 把A的`public`成员变成`protected` | ❌ 较少用                   |
-| `private` 继承   | 把A的所有成员变成`private`       | ❌ 默认方式                 |
+    void print() {
+        cout << name << " " << age << endl;
+    }
+};
+
+class Student : public Person {
+public:
+    int id;
+};
+
+class Teacher : public Person {
+public:
+    int salary;
+};
+```
+
+Student、Teacher 自动拥有 Person 的成员（父类成员成为子类的一部分）
+
+**子类对父类的访问权限：**
+
+```
+class Person {
+public:
+    int a;
+
+protected:
+    int b;
+
+private:
+    int c;
+};
+```
+
+子类可访问：a  (**public**)，b  (**protected**)
+
+子类不可访问：c  (private)
 
 
 
-**一、构造与析构的顺序**
+### 2. 三种继承方式与权限变化
 
-**规则：先父母，后自己（构造）；先自己，后父母（析构）**
+继承方式 **不会改变父类成员本身的权限**，只影响**父类成员在子类中的访问级别**
+
+`class 子类 : 继承方式 父类`
+
+| 继承方式    | 效果                                | 最常用                     |
+| :---------- | :---------------------------------- | :------------------------- |
+| `public`    | 保持父类中原有的访问权限            | ✅ 最常用（表示"is-a"关系） |
+| `protected` | 把父类的`public`成员变成`protected` | ❌ 较少用                   |
+| `private`   | 把父类的所有成员变成`private`       | ❌ 默认方式                 |
+
+
+
+### 3. 继承中的构造函数与析构函数顺序
+
+构造顺序必须是：先构造父类，再构造子类
+
+析构顺序必须是：先析构子类，再析构父类
+
+```
+class A {
+public:
+    A() {
+        cout << "A 构造" << endl;
+    }
+    ~A() {
+        cout << "A 析构" << endl;
+    }
+};
+
+class B : public A {
+public:
+    B() {
+        cout << "B 构造" << endl;
+    }
+
+    ~B() {
+        cout << "B 析构" << endl;
+    }
+};
+
+int main() {
+    B obj;
+}
+```
+
+程序输出：
+A 构造（父）
+B 构造（子）
+B 析构（子）
+A 析构（父）
+
+**父类构造函数有参数时，就没有默认构造函数**
+
+必须要**构造函数初始化列表**
+
+先调用父类构造函数，然后再执行子类构造函数体
+
+```
+class Person {
+public:
+    int age;
+
+    Person(int a) { // 带参数的构造函数
+        age = a;
+    }
+};
+
+class Student : public Person {
+public:
+    int id;
+
+    Student(int a,int i) : Person(a) { // 先调用父类构造函数
+        id = i;
+    }
+};
+```
+
+`class Student : public Person`  其中  `: Person(a)`叫 **构造函数初始化列表**
+
+意为：在Student对象构造时，用 a 来构造它的 Person 部分
+
+```
+int main() {
+	Student s(18,1001);
+}
+```
+
+第一步：构造父类部分，执行：Person(a)
+第二步：执行子类构造函数体，执行：id = 1001;
+
+**不能在函数体内调用父类构造函数**
+
+```
+Student(int a,int i)
+{
+    Person(a);  // ❌这其实是创建一个临时 Person 对象，而不是构造 Student 内部的 Person 部分
+    id = i;
+}
+```
+
+
+
+### 4. 同名隐藏
+
+只要**子类出现同名函数**，不管参数是否相同，**父类**所有同名函数都会**被隐藏**
+
+调用父类函数可以使用 **作用域解析符**：
+
+```
+b.A::func();
+```
+
+```
+class A {
+public:
+    void func() {
+        cout << "A func()" << endl;
+    }
+    void func(int) {
+        cout<<"A func(int)"<<endl;
+    }
+};
+
+class B : public A {
+public:
+    void func(double) {     //A 的 func() 和 func(int) 都被隐藏了，B只有 func(double)
+        cout<<"B func(double)"<<endl;
+    }
+};
+
+int main() {
+    B b;
+    b.func();    // ❌报错！fun()被class B隐藏，编译器无法找到
+    b.A::func(); // ✅正确
+}
+```
+
+如果要**恢复父类函数**（使同名父类函数在子类可见），使用 `using A::func;`
+
+```
+class B : public A {
+public:
+    using A::func;   // 使func()、func(int)在 B 类中可见
+
+    void func(double) {
+        cout<<"B func(double)"<<endl;
+    }
+};
+```
+
+| 类型     | 作用域 | 特征                 |
+| -------- | ------ | -------------------- |
+| 函数重载 | 同一类 | 同名**不同参数**     |
+| 同名隐藏 | 父子类 | 子类**隐藏父类**函数 |
+
+
+
+### 5. 虚函数与多态
+
+**父类指针可以指向子类对象**，子类指针不能直接指向父类对象
+父类指针指向的是父类部分成员，子类部分成员无法访问
 
 ```
 class Base {
 public:
-    Base() { cout << "Base构造" << endl; }
-    ~Base() { cout << "Base析构" << endl; }
+    void show() {
+        cout << "Base show" << endl;
+    }
 };
 
 class Derived : public Base {
 public:
-    Derived() { cout << "Derived构造" << endl; }
-    ~Derived() { cout << "Derived析构" << endl; }
+    void show() {
+        cout << "Derived show" << endl;
+    }
 };
 
 int main() {
+    Base* p;
     Derived d;
-    // 输出顺序：
-    // Base构造
-    // Derived构造
-    // Derived析构（d离开作用域时）
-    // Base析构
+    p = &d;    // Base* 父类型的指针 p 指向 Derived 子类型的 d
+    p->show(); // 输出：Base show
 }
 ```
 
-- **构造函数** `Base()`：负责初始化（**和类名相同的函数**是构造函数，这是C++的规定），创建对象时**自动调用**，没有返回值（不写`void`），可以重载（可以有多个参数不同的构造函数）
-- **析构函数** `~Base()`：销毁对象时**自动调用**，负责清理，**`~` 是取反符号，这里表示"析构"**
+**静态绑定**，又名编译期绑定
+`p->show();` 编译器只看 p 的类型，而非 p 所指的对象，p 是 Base*，调用 `Base::show()`
 
 
 
-
-
-**new 的工作原理**
-
-```
-Book* book = new Book("C++教程", "张三", 500);
-
-// 实际上发生了三件事：
-// 1. 分配内存：operator new(sizeof(Book)) 分配足够的内存
-// 2. 构造对象：在分配的内存上调用Book的构造函数
-// 3. 返回指针：返回指向该内存的指针
-```
-
-**delete 的工作原理**
+如果要调用 Derived 的函数，需要用 **`virtual`** 告诉编译器 ”这个函数可能被子类重写“
+**虚函数的语法：**在 **父类函数前加 virtual**
 
 ```
-delete book;
-
-// 实际上发生了两件事：
-// 1. 调用析构函数：~Book() 清理对象资源
-// 2. 释放内存：operator delete(book) 释放内存
-```
-
-**示例：**
-
-```
-class String {
-private:
-    char* str;  // 指针成员
-    
+class Base {
 public:
-    String(const char* s) {  // 构造函数：分配内存 
-        str = new char[strlen(s) + 1];
-        strcpy(str, s);
+    virtual void show() {   // 在父类函数前加 virtual
+        cout << "Base show" << endl;
     }
-    
-    ~String() {  // 析构函数：释放内存
-        delete[] str;
+};
+p->show(); // 输出：Derived show
+```
+
+**动态绑定**，又名运行期绑定
+编译器会在 **运行时判断对象真实类型**，p 指向 Derived 对象，调用`Derived::show()`
+
+
+
+**多态**定义：同一接口，不同实现
+
+```
+class Animal {
+public:
+    virtual void speak() {
+        cout << "Animal sound" << endl;
     }
 };
 
-// 正确创建对象方式，用new
-String* s = new String("hello");//创建对象的同时给s赋值"hello"
+class Dog : public Animal {
+public:
+    void speak() {
+        cout << "Dog bark" << endl;
+    }
+};
 
-// 正确释放方式，用delete
-delete s;  // ✅ 先调 析构函数 释放str，再释放s本身
+class Cat : public Animal {
+public:
+    void speak() {
+        cout << "Cat meow" << endl;
+    }
+};
 
-// 如果用free释放
-free(s);  // ❌ 析构函数 不会被调用！str指向的内存泄漏了！
+int main() {
+    Animal* p;
+
+    Dog d;
+    Cat c;
+
+    p = &d;
+    p->speak(); // Dog bark
+
+    p = &c;
+    p->speak(); // Cat meow
+}
 ```
 
-**`new[]` 和 `delete[]` 的配对**
+**C++的多态：同一个指针，指向不同对象，得到不同结果**
+`virtual` 虚函数支持多态
+
+
+
+发生**多态的三个条件**
+
+- 继承关系
+- 虚函数
+- 基类指针或引用指向子类对象（父类指针指向子类对象）
+
+
+
+**虚函数重写（override）：**子类重新实现父类的虚函数
+
+条件：
+
+- 父类函数必须是 `virtual`
+- 子类函数与父类函数的 **函数名相同**
+- **参数列表相同**
+- **返回类型兼容**
 
 ```
-// 申请对象数组
-String* arr = new String[3];  // 会调用3次构造函数！
+class Base {
+public:
+    virtual void func();
+};
 
-// 释放数组
-delete[] arr;  // 会调用3次析构函数！重要！
-
-// 错误写法：
-delete arr;  // ❌ 只调用第1个对象的析构函数，后两个对象的内存泄漏！
+class Derived : public Base {
+public:
+    void func(); 
+    // 或 void func() override;
+};
 ```
-
-
-
-## **栈 vs 堆 对比表**
-
-| 特性         | 栈（Stack）      | 堆（Heap）                |
-| :----------- | :--------------- | :------------------------ |
-| **创建方式** | `Book b(...)`    | `Book* p = new Book(...)` |
-| **内存分配** | 自动             | 手动（new）               |
-| **释放方式** | 自动（出作用域） | 手动（delete）            |
-| **速度**     | 快               | 慢                        |
-| **大小**     | 小（MB级）       | 大（GB级）                |
-| **生命周期** | 随函数结束而结束 | 直到手动释放              |
 
 
 
