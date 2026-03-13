@@ -69,7 +69,7 @@ const int * p = &a;
 a = 20; // 是合法的，int const * p = &a只限制不能通过p修改a，但a本身不是常量，可以修改
 ```
 
-**常量指针**：指针指向的区域值可以变，不能改变指针的指向
+z
 
 ```
 int * const p
@@ -158,7 +158,7 @@ int* p2 = new int(10);      // 分配内存并初始化为10
 int* p3 = new int();        // 分配内存并初始化为0
 
 // 分配数组
-int* arr = new int[10];      // 调用10次构造函数，分配10个int的数组
+Book* arr = new Book[10];      // 调用10次构造函数，分配10个int的数组
 ```
 
 
@@ -1673,7 +1673,7 @@ public:
 int main() {
     Array arr;
 
-    arr[0] = 10; // arr[0]是在调用operator[]，以返回data[0]的引用，再将10赋值给data[10]的引用
+    arr[0] = 10; // arr[0]是在调用operator[]，以返回data[0]的引用，再将10赋值给data[0]的引用
     arr[1] = 20;
 }
 
@@ -2176,5 +2176,210 @@ public:
 };
 ```
 
+父类虚函数的意义：是给所有子类定义一个“**统一接口**”，并**允许通过父类指针**在运行时**调用不同子类的实现**
 
+
+
+### 6. 虚析构
+
+```
+class Base {
+public:
+    ~Base() {
+        cout << "Base destructor" << endl;
+    }
+};
+
+class Derived : public Base {
+public:
+    ~Derived() {
+        cout << "Derived destructor" << endl;
+    }
+};
+
+int main() {
+    Base* p = new Derived;
+
+    delete p;
+}
+```
+
+实际只输出：Base destructor（`~Derived()`没有执行）
+因为 p 是Base*类型指针，执行 `delete p` 时，编译器只会调用`Base::~Base()`
+这种现象可能会导致内存泄漏
+
+解决方法：**虚析构函数**
+只需要在 **基类析构函数前加 virtual**（在父类函数前 `virtual`）
+
+```
+class Base {
+public:
+    virtual ~Base() {
+        cout << "Base destructor" << endl;
+    }
+};
+```
+
+`virtual` 函数使用**动态绑定**，执行 `delete p`时，
+编译器会根据 **对象真实类型** 调用 `Derived::~Derived()`，然后自动继续调用 `Base::~Base()`
+
+如果一个类会被继承，并且会通过基类指针删除对象，那么**基类的析构函数必须是 virtual**
+
+
+
+### 7. 纯虚函数与抽象类
+
+```
+class Animal {  // Animal是抽象类，不能创建对象
+public:
+    virtual void speak() = 0; // 纯虚函数
+};
+```
+
+`=0` 表示 这个函数 **没有实现**，**必须由子类实现**（纯虚函数）
+
+ 只要**一个类有至少一个纯虚函数**，这个类就叫 **抽象类**（Abstract Class）
+
+由于Animal 的行为不完整，**抽象类不能创建对象**
+`Animal a;` ❌会报错！
+
+抽象类通常用于 **定义接口**
+
+```
+class Shape {
+public:
+    virtual double area() = 0;
+};
+
+class Circle : public Shape {
+public:
+    double r;
+
+    Circle(double r) {
+        this->r = r;
+    }
+
+    double area() {
+        return 3.14 * r * r;
+    }
+};
+class Rectangle : public Shape {
+public:
+    double w,h;
+
+    Rectangle(double w,double h) {
+        this->w = w;
+        this->h = h;
+    }
+
+    double area() {
+        return w * h;
+    }
+};
+```
+
+```
+int main() {
+    Shape* s;
+
+	Circle c(2);
+	Rectangle r(3,4);
+
+	s = &c;
+	cout << s->area() << endl;
+	
+	s = &r;
+	cout << s->area() << endl;
+}
+```
+
+Shape 指针，不同对象，不同实现；这就是 **面向对象设计的核心思想**
+
+
+
+### 8.  重载 / 重写 / 隐藏总辨析
+
+**函数重载（Overload）**
+
+发生在：**同一个作用域**
+
+同时满足：同一个类，函数名相同，参数不同
+
+```
+class A {
+public:
+	void func() {
+	    cout << "func()" << endl;
+	}
+	void func(int x) {
+	    cout << "func(int)" << endl;
+	}
+	void func(double x) {
+	    cout << "func(double)" << endl;
+	}
+};
+```
+
+**函数重写（Override）**
+
+发生在：**父类和子类**
+
+同时满足：函数名相同，参数相同，virtual函数（父）
+
+```
+class Base {
+public:
+    virtual void show() {
+        cout << "Base show" << endl;
+    }
+};
+
+class Derived : public Base {
+public:
+    void show() {
+        cout << "Derived show" << endl;
+    }
+};
+```
+
+```
+Base* p = new Derived;
+p->show();     // 输出：Derived show
+```
+
+**同名隐藏（Hide）**
+
+发生在：**父类和子类**，子类隐藏父类的同名函数
+
+发生条件：函数名相同
+
+```
+class A {
+public:
+    void func() {
+        cout << "A func()" << endl;
+    }
+};
+
+class B : public A {
+public:
+    void func(int x) {
+        cout << "B func(int)" << endl;
+    }
+};
+int main(){
+	B b;
+	b.func(); // ❌编译报错！
+}
+```
+
+`A::func()` 被 `B::func(int)` 隐藏，`b` 只能找到 `func(int)` 找不到 `func()`
+
+
+
+| 类型     | 发生位置 | 条件                  |
+| -------- | -------- | --------------------- |
+| 函数重载 | 同一类   | 同名+不同参数         |
+| 函数重写 | 父子类   | 同名+virtual + 同参数 |
+| 同名隐藏 | 父子类   | 同名                  |
 
