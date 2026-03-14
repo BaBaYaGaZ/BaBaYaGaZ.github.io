@@ -2383,3 +2383,203 @@ int main(){
 | 函数重写 | 父子类   | 同名+virtual + 同参数 |
 | 同名隐藏 | 父子类   | 同名                  |
 
+
+
+# 第七大单元：文件操作（File I/O）
+
+C++ 把文件操作做成了：文件流对象
+
+C++ 把“文件”包装成一个对象，然后用对象自己的成员函数和运算符去操作
+
+**核心头文件**：`#include <fstream>`
+
+库提供三个**核心文件流类**：
+
+| 文件流类   | 作用（站在程序角度）                      |
+| ---------- | ----------------------------------------- |
+| `ifstream` | **文件输入**到程序（文件 → 程序，读文件） |
+| `ofstream` | **程序输出**到文件（程序→ 文件，写文件）  |
+| `fstream`  | 同时读写                                  |
+
+
+
+**常见打开模式**
+
+| 模式          | 含义   |
+| ------------- | ------ |
+| `ios::out`    | 写     |
+| `ios::app`    | 追加   |
+| `ios::in`     | 读     |
+| `ios::binary` | 二进制 |
+
+**组合方式：**
+
+```
+ofstream fout("data.txt", ios::out | ios::app); // 写 + 追加
+```
+
+
+
+**读文件（ifstream）**：输入，从文件里读数据到程序
+
+```
+ifstream fin("data.txt");  // 在构造对象 fin 时直接打开
+```
+
+也可以是： 
+
+```
+ifstream fin;
+fin.open("data.txt");      // 先构造，再调用 open 成员函数打开
+```
+
+```
+#include <fstream>
+#include <iostream>
+using namespace std;
+
+int main() {
+    ifstream fin("test.txt"); // 创建一个输入文件流对象 fin，并打开 test.txt
+    string s;                 // s 用来存放从文件读到的内容
+    fin >> s;                 // 从文件流 fin 读取数据到变量 s 中
+    cout << s << endl;        // 把从文件读到的字符串 s 输出到控制台（屏幕）
+    fin.close();              // 关闭文件，释放资源
+    return 0;
+}
+```
+
+`>>` 会**跳过空白字符（空格、换行、制表符）**，然后读取连续的字符**直到遇到下一个空白字符为止**
+
+如果文件 `test.txt` 内容是 `"hello world 123"`，那么第一次 `fin >> s` 只会读取 `"hello"`，然后停止在空格前，`s` 的值变成 `"hello"`
+
+
+
+**写文件（ostream）**：输出，将程序数据写到文件中
+
+**清空文件，重新写**：（默认模式：`ios::out`）
+
+```
+ofstream fout("data.txt");  // 在构造时直接打开
+```
+
+也可以是：
+
+```
+ofstream fout;
+fout.open("data.txt");      // 先构造，再调用 open 成员函数打开
+```
+
+```
+#include <fstream>
+using namespace std;
+
+int main() { 
+    ofstream fout("test.txt"); // 创建一个输出文件流对象 fout，并打开 test.txt
+    fout << "hello" << endl;   // 把 hello 写进去（清空文件，重新写）
+    fout.close();              // 手动关闭 fout，程序结束时通常也会自动 close
+    return 0;
+}
+```
+
+**追加写入：**
+
+```
+ofstream fout("data.txt", ios::app);
+```
+
+
+
+**又读又写（fstream）**：
+
+```
+fstream file("data.txt", ios::in | ios::out);
+```
+
+`fstream` 默认为 `ios::in | ios::out`
+
+```
+fstream file("data.txt", ios::in);
+```
+
+表示 只读
+
+
+
+**`getline(fin, line)` 逐行读取**
+
+```
+int main() {
+    ifstream fin("text.txt");
+
+    string line;
+
+    while(getline(fin,line)) { // 逐行提取
+        cout << line << endl;
+    }
+}
+```
+
+
+
+**判断文件是否打开成功**
+
+```
+ifstream fin("data.txt");
+
+if(!fin) {
+    cout << "open file error\n";
+    return 1;
+}
+```
+
+如果文件打开失败，`fin` 状态为 false
+
+
+
+**文件复制程序**
+
+逐字符：
+
+```
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+int main() {
+    ifstream fin("a.txt");
+    ofstream fout("b.txt");
+
+	char c;
+
+	while(fin.get(c)) { // 从文件读取一个字符
+    	fout.put(c);    // 写入一个字符
+	}
+
+	fin.close();
+	fout.close();
+}
+```
+
+逐行：
+
+```
+#include <iostream>
+#include <fstream>
+#include <string>
+using namespace std;
+
+int main() {
+    ifstream fin("a.txt");
+    ofstream fout("b.txt");
+
+	string line;
+
+	while(getline(fin,line)) {
+    	fout << line << endl;
+	}
+
+	fin.close();
+	fout.close();
+}
+```
+
